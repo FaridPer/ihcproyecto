@@ -9,8 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.66.8",
+    "font-awesome": "^4.7.0",
+    "next": "15.1.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.1.7"
+    "react-icons": "^5.5.0",
+    "regenerator-runtime": "^0.14.1",
+    "web-speech-recognizer": "^1.0.5"
   }
 }

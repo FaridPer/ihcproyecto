@@ -1,95 +1,192 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import { useState, useEffect, useRef } from "react";
+import { FaPlay, FaPause, FaEye } from "react-icons/fa";
 
-export default function Home() {
+export default function VoiceSearchBar() {
+  const [query, setQuery] = useState("");
+  const [listening, setListening] = useState(false);
+  const [results, setResults] = useState([]);
+  const audioRefs = useRef({});
+  const [playingTrack, setPlayingTrack] = useState(null);
+  const recognitionRef = useRef(null);
+
+
+  const handleVoiceSearch = () => {
+    if (!("webkitSpeechRecognition" in window)) {
+      alert("Tu navegador no soporta reconocimiento de voz. Por favor, usa Chrome");
+      return;
+    }
+  
+    // 🛑 Si ya existe una instancia, detenerla antes de crear una nueva
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null; 
+    }
+  
+    // Crear una nueva instancia de reconocimiento
+    recognitionRef.current = new window.webkitSpeechRecognition();
+    recognitionRef.current.lang = "es-ES";
+    recognitionRef.current.continuous = false;
+    recognitionRef.current.interimResults = false;
+  
+    recognitionRef.current.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      
+      // 🛑 Reiniciar la consulta antes de asignar un nuevo valor
+      setQuery(""); 
+      setTimeout(() => setQuery(transcript), 100);
+    };
+    
+    
+    
+  
+    recognitionRef.current.onerror = (event) => {
+      console.error("Error en reconocimiento de voz:", event.error);
+    };
+  
+    recognitionRef.current.onend = () => {
+      setListening(false);
+      recognitionRef.current = null; // 🛑 Eliminar la instancia después de finalizar
+    };
+  
+    recognitionRef.current.start();
+    setListening(true);
+  };
+  
+
+  useEffect(() => {
+    // 🛑 Pausar y reiniciar cualquier audio en reproducción antes de cambiar resultados
+    Object.values(audioRefs.current).forEach((audio) => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    });
+  
+    setPlayingTrack(null);  // Resetear estado de reproducción
+  }, [results]);
+  
+  console.log(Object.keys(audioRefs.current));
+
+
+  useEffect(() => {
+    if (query.length > 2) {
+      fetch(`/api/search?q=${query}`)
+        .then((res) => res.json())
+        .then((data) => {
+          // 🛑 DETENER AUDIOS ACTIVOS
+          Object.values(audioRefs.current).forEach((audio) => {
+            if (audio) {
+              audio.pause();
+              audio.currentTime = 0; // Reiniciar audio
+            }
+          });
+  
+          // 🛑 LIMPIAR REFERENCIAS ANTIGUAS
+          Object.keys(audioRefs.current).forEach(key => {
+            delete audioRefs.current[key];
+          });
+  
+          setPlayingTrack(null); // Resetear estado de reproducción
+          setResults(data);
+        })
+        .catch((err) => console.error("Error en la búsqueda:", err));
+    } else {
+      setResults([]);
+    }
+  }, [query]);
+  
+  const togglePlayPause = (index) => {
+    const audio = audioRefs.current[index];
+  
+    if (!audio) return; // Si no hay referencia, no hacer nada
+  
+    if (playingTrack === index) {
+      if (!audio.paused) {
+        audio.pause();
+        setPlayingTrack(null); 
+      } else {
+        audio.play();
+        setPlayingTrack(index);
+      }
+    } else {
+      // 🔥 Detener cualquier otro audio en reproducción
+      Object.values(audioRefs.current).forEach((audioEl) => {
+        if (audioEl && !audioEl.paused) {
+          audioEl.pause();
+          audioEl.currentTime = 0;
+        }
+      });
+  
+      audio.play();
+      setPlayingTrack(index);
+    }
+  };
+  
+  
+  
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div>
+      <nav className="nav-container">
+        <div className="search-container">
+          <input
+            type="text"
+            className="input-nav"
+            placeholder="Escribe o preiona el botón para grabar..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            className={`p-2 rounded-md ${listening ? "bg-red-500" : "bg-blue-500"}`}
+            onClick={handleVoiceSearch}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+            🎤
+          </button>
         </div>
+      </nav>
+
+      <main>
+        {results.length > 0 && (
+          <div className="search-results">
+            {results.map((item, index) => (
+              <div key={index} className="result-item">
+                <h3>{item.name}</h3>
+                <img alt={`Portada de: ${item.name}`} src={`/libros/${item.image}`} />
+                <audio 
+                      ref={(el) => {
+                        if (el) {
+                          audioRefs.current[index] = el; 
+                        } else {
+                          delete audioRefs.current[index]; // 🛑 Elimina referencias nulas
+                        }
+                      }} 
+                      preload="none"
+                    >
+                      <source src={`/libros/${item.audio}`} type="audio/mpeg" />
+                      Tu navegador no soporta audio.
+                </audio>
+
+                <div className="menu">
+                  <div id="player-container">
+                    <button 
+                      onClick={() => togglePlayPause(index)} 
+                      className="play-button"
+                    >
+                      {playingTrack === index && !audioRefs.current[index]?.paused ? <FaPause /> : <FaPlay />}
+                    </button>
+                  </div>
+                  <div className="pdf-container">
+                    <button className="read-button">
+                      <FaEye />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { FaPlay, FaPause, FaEye } from "react-icons/fa";
+import Link from "next/link";
 
 export default function VoiceSearchBar() {
   const [query, setQuery] = useState("");
@@ -10,6 +11,15 @@ export default function VoiceSearchBar() {
   const [playingTrack, setPlayingTrack] = useState(null);
   const recognitionRef = useRef(null);
 
+  useEffect(() => {
+    fetch("/api/search?q=") // Dejar la query vacía para obtener todos
+      .then((res) => res.json())
+      .then((data) => {
+        setResults(data);
+      })
+      .catch((err) => console.error("Error al obtener los libros:", err));
+  }, []);
+  
 
   const handleVoiceSearch = () => {
     if (!("webkitSpeechRecognition" in window)) {
@@ -176,9 +186,11 @@ export default function VoiceSearchBar() {
                       {playingTrack === index && !audioRefs.current[index]?.paused ? <FaPause /> : <FaPlay />}
                     </button>
                   </div>
-                  <div className="pdf-container">
+                  <div className="read-container">
                     <button className="read-button">
+                    <Link href={`/libros/${item.archive}`}>
                       <FaEye />
+                    </Link>
                     </button>
                   </div>
                 </div>

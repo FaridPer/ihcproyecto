@@ -143,7 +143,7 @@ export default function VoiceSearchBar() {
           <input
             type="text"
             className="input-nav"
-            placeholder="Escribe o preiona el botón para grabar..."
+            placeholder="Escribe o presiona el botón para grabar..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
